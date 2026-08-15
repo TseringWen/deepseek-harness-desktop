@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>DeepSeek Harness</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --green: #4c583c;
+      --green-dark: #3c472e;
+      --sage: #7f8c67;
+      --bg: #f4f5f0;
+      --surface: #ffffff;
+      --text: #23271f;
+      --muted: #7c8472;
+      --faint: #a6ab99;
+      --ok: #5b7a45;
+      --err: #c0594f;
+      --warn: #c08a3e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      font-size: 13.5px; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    button { font: inherit; background: none; border: none; cursor: pointer; color: inherit; border-radius: 0; }
+    .hidden { display: none !important; }
+
+    /* ---------- 顶栏（扁平、无边框、无圆角，靠字色/字重区分状态） ---------- */
+    #topbar {
+      flex: none; height: 56px; padding: 0 28px;
+      display: flex; align-items: center; gap: 32px;
+      background: var(--bg);
+      user-select: none;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; letter-spacing: .2px; color: var(--text); }
+    .brand img { width: 24px; height: 24px; flex: none; display: block; }
+    .tabs { display: flex; align-items: center; gap: 26px; }
+    .tab { font-size: 14px; color: var(--faint); font-weight: 500; letter-spacing: .3px; transition: color .15s ease; }
+    .tab:hover { color: var(--muted); }
+    .tab.active { color: var(--green); font-weight: 700; }
+    #topbar .spacer { flex: 1; }
+    .topbar-version { color: var(--faint); font-size: 12.5px; letter-spacing: .3px; margin-right: 10px; }
+    .icon-btn {
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); transition: color .15s ease;
+    }
+    .icon-btn:hover { color: var(--green); }
+
+    /* ---------- 内容区 ---------- */
+    #content { flex: 1; position: relative; overflow: hidden; }
+    .view { position: absolute; inset: 0; }
+
+    /* ---------- 仪表盘（扁平、无卡片、无边框，靠留白与排版分层） ---------- */
+    #view-dashboard { overflow-y: auto; }
+    .dash { max-width: 1180px; margin: 0 auto; padding: 0 34px 60px; }
+
+    .welcome {
+      min-height: 24vh;
+      display: flex; align-items: center; justify-content: space-between; gap: 40px;
+      padding: 20px 0 8px;
+    }
+    .greeting { font-size: 40px; font-weight: 700; letter-spacing: .5px; color: var(--text); }
+    .greeting em { font-style: normal; color: var(--green); }
+    .welcome-date { margin-top: 10px; color: var(--green); font-weight: 700; font-size: 34px; letter-spacing: .5px; }
+    .welcome-poem { max-width: 420px; text-align: right; }
+    .poem-text {
+      color: var(--sage); font-size: 15px; line-height: 1.9; letter-spacing: .4px;
+      white-space: pre-line;
+    }
+    .poem-author { margin-top: 8px; color: var(--faint); font-size: 12.5px; letter-spacing: .3px; }
+
+    .section { margin-top: 44px; }
+    .section-title {
+      font-size: 20px; font-weight: 800; letter-spacing: 1px;
+      color: var(--green); margin-bottom: 24px; text-align: center;
+    }
+
+    .stat-row { display: flex; flex-wrap: wrap; gap: 0 72px; }
+    .stat { padding: 4px 0; }
+    .stat-value { font-size: 30px; font-weight: 700; letter-spacing: .3px; color: var(--text); }
+    .stat-value small { font-size: 15px; font-weight: 400; color: var(--muted); margin-left: 4px; }
+    .stat-label { margin-top: 6px; font-size: 12.5px; color: var(--muted); letter-spacing: .3px; }
+
+    .detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 48px; }
+    @media (max-width: 980px) { .detail-grid { grid-template-columns: repeat(2, 1fr); gap: 28px 48px; } }
+    .per-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+    .per-row { display: flex; justify-content: space-between; padding: 5px 0; color: var(--muted); font-size: 12.5px; }
+    .per-row b { color: var(--text); font-weight: 600; }
+
+    .balance-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 60px; }
+    .balance-amount { font-size: 40px; font-weight: 700; letter-spacing: .3px; color: var(--green); }
+    .balance-amount small { font-size: 16px; font-weight: 400; color: var(--muted); margin-left: 4px; }
+    .balance-item { display: flex; align-items: baseline; gap: 8px; color: var(--muted); font-size: 13px; }
+    .balance-item b { color: var(--text); font-weight: 600; }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+    .dot.ok { background: var(--ok); } .dot.err { background: var(--err); }
+    .link { color: var(--green); text-decoration: none; cursor: pointer; font-weight: 600; }
+    .link:hover { text-decoration: underline; }
+
+    .chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .seg { display: flex; gap: 20px; }
+    .seg button { font-size: 13px; color: var(--faint); }
+    .seg button.active { color: var(--green); font-weight: 700; }
+    #dash-chart { position: relative; margin-top: 12px; }
+    #dash-chart svg { display: block; width: 100%; height: auto; }
+    #dash-tip {
+      position: absolute; pointer-events: none; z-index: 30;
+      background: #ffffff; box-shadow: 0 10px 28px rgba(35,39,31,.18);
+      padding: 10px 14px; font-size: 12px; color: var(--text);
+      white-space: nowrap; transform: translate(-50%, calc(-100% - 12px));
+    }
+    #dash-tip .t-row { display: flex; justify-content: space-between; gap: 18px; margin-top: 4px; color: var(--muted); }
+    #dash-tip .t-row b { color: var(--text); font-weight: 600; }
+    .chart-note { color: var(--faint); font-size: 12px; margin-top: 6px; }
+
+    .footer { margin-top: 64px; padding-top: 28px; border-top: 1px solid #dfe2d4; }
+    .footer .ver { color: var(--faint); font-size: 12.5px; letter-spacing: .3px; }
+    .footer .ver b { color: var(--muted); font-weight: 600; }
+    .footer .src { margin-top: 8px; color: var(--faint); font-size: 12px; }
+
+    /* ---------- 工作台 ---------- */
+    #view-workbench { background: #0b0e14; }
+    #wb-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: #0b0e14; }
+    #wb-overlay {
+      position: absolute; inset: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(11, 14, 20, .94);
+    }
+    .overlay-card { text-align: center; max-width: 460px; padding: 30px 40px; }
+    .spinner {
+      width: 30px; height: 30px; margin: 0 auto 16px;
+      border: 3px solid rgba(244,245,240,.18); border-top-color: #b9c3a5;
+      border-radius: 50%; animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .overlay-card .t { font-size: 15px; font-weight: 600; color: #f4f5f0; }
+    .overlay-card .d { margin-top: 6px; color: #a4aa97; font-size: 12.5px; word-break: break-all; }
+    .overlay-card .actions { margin-top: 18px; display: flex; gap: 10px; justify-content: center; }
+
+    /* ---------- 余额浮窗（仅工作台） ---------- */
+    #dshd-root { position: absolute; right: 14px; bottom: 14px; z-index: 40; }
+    .dshd-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 14px; border-radius: 999px;
+      background: var(--surface); border: 1px solid #e4e6da;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      color: var(--text); font-size: 12px; cursor: pointer; user-select: none;
+    }
+    .dshd-pill:hover { border-color: var(--green); }
+    .dshd-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex: none; }
+    .dshd-dot.ok { background: var(--ok); }
+    .dshd-dot.err { background: var(--err); }
+    .dshd-sep { color: var(--faint); }
+    .dshd-panel {
+      position: absolute; right: 0; bottom: 48px; width: 330px;
+      background: var(--surface); border: 1px solid #e4e6da; border-radius: 14px;
+      box-shadow: 0 18px 48px rgba(0,0,0,.35); overflow: hidden; font-size: 12.5px; color: var(--text);
+    }
+    .dshd-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 15px 10px; border-bottom: 1px solid #e4e6da; }
+    .dshd-title { font-size: 13.5px; font-weight: 700; }
+    .dshd-actions { display: flex; gap: 2px; }
+    .dshd-btn { width: 27px; height: 27px; border-radius: 7px; color: var(--muted); font-size: 13px; line-height: 1; }
+    .dshd-btn:hover { background: #eceee4; color: var(--green); }
+    .dshd-section { padding: 12px 15px; }
+    .dshd-section + .dshd-section { border-top: 1px solid #e4e6da; }
+    .dshd-sec-title { color: var(--faint); font-size: 11px; letter-spacing: .6px; margin-bottom: 8px; text-transform: uppercase; }
+    .dshd-big { font-size: 22px; font-weight: 700; letter-spacing: .3px; color: var(--text); }
+    .dshd-big small { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 5px; }
+    .dshd-row { display: flex; justify-content: space-between; margin-top: 7px; color: var(--muted); font-size: 12px; }
+    .dshd-row b { color: var(--text); font-weight: 600; }
+    .dshd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 10px; }
+    .dshd-cell { color: var(--faint); font-size: 11.5px; }
+    .dshd-cell b { display: block; color: var(--text); font-weight: 600; font-size: 13px; margin-top: 1px; }
+    .dshd-bar { height: 6px; background: #eceee4; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+    .dshd-bar-inner { height: 100%; background: var(--green); border-radius: 3px; }
+    .dshd-foot {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 15px 12px; border-top: 1px solid #e4e6da;
+    }
+  </style>
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">
+      <img src="../build/whale.svg" alt="DeepSeek" />
+      DeepSeek Harness
+    </div>
+    <nav class="tabs">
+      <button class="tab" id="tab-dashboard" data-view="dashboard">仪表盘</button>
+      <button class="tab active" id="tab-workbench" data-view="workbench">工作台</button>
+    </nav>
+    <div class="spacer"></div>
+    <span class="topbar-version" id="topbar-version">v--</span>
+    <button class="icon-btn" id="btn-settings" title="设置">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+  </header>
+
+  <main id="content">
+    <!-- 仪表盘 -->
+    <section id="view-dashboard" class="view hidden">
+      <div class="dash">
+        <div class="welcome">
+          <div>
+            <div class="greeting"><em id="welcome-greeting">你好</em></div>
+            <div class="welcome-date" id="welcome-date">--</div>
+          </div>
+          <div class="welcome-poem">
+            <div class="poem-text" id="welcome-poem">--</div>
+            <div class="poem-author" id="welcome-poem-author"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">本月概览</div>
+          <div class="stat-row">
+            <div class="stat"><div class="stat-value" id="dash-month-tokens">--</div><div class="stat-label">本月 Token 消耗</div></div>
+            <div class="stat"><div class="stat-value">¥<span id="dash-month-cost">--</span></div><div class="stat-label">本月预估花费</div></div>
+            <div class="stat"><div class="stat-value" id="dash-requests">--</div><div class="stat-label">本月请求</div></div>
+            <div class="stat"><div class="stat-value" id="dash-sessions">--</div><div class="stat-label">会话数</div></div>
+            <div class="stat"><div class="stat-value">¥<span id="dash-day-avg">--</span></div><div class="stat-label">日均花费</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">用量明细</div>
+          <div class="detail-grid" id="dash-detail"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">账户余额</div>
+          <div class="balance-line">
+            <span class="balance-amount">¥<span id="dash-balance">--</span><small id="dash-bal-currency"></small></span>
+            <span class="balance-item"><span class="dot ok" id="dash-bal-dot"></span><b id="dash-bal-status">--</b></span>
+            <span class="balance-item">充值 / 赠送 <b id="dash-bal-split">--</b></span>
+            <span class="balance-item">更新时间 <b id="dash-bal-time">--</b></span>
+            <span class="balance-item">单价 <b id="dash-prices">--</b></span>
+            <a class="link" id="dash-platform">平台用量页 →</a>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">每日消耗（本月）</div>
+          <div class="chart-head">
+            <div class="seg">
+              <button id="metric-cost" class="active">金额</button>
+              <button id="metric-tokens">Tokens</button>
+            </div>
+            <span class="chart-note" id="dash-updated" style="margin:0"></span>
+          </div>
+          <div id="dash-chart"></div>
+          <div class="chart-note" id="dash-chart-note">金额为按设置单价估算，实际账单以 DeepSeek 开放平台为准。</div>
+        </div>
+
+        <div class="footer">
+          <div class="ver">DeepSeek Harness Desktop <b id="dash-version">--</b></div>
+          <div class="src">数据来源：本机 Harness 会话日志（今日 / 近 7 天 / 本月 / 累计） · DeepSeek 官方余额接口</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 工作台 -->
+    <section id="view-workbench" class="view">
+      <iframe id="wb-frame" referrerpolicy="no-referrer"></iframe>
+      <div id="wb-overlay" class="hidden">
+        <div class="overlay-card">
+          <div class="spinner" id="wb-spinner"></div>
+          <div class="t" id="wb-status">正在初始化…</div>
+          <div class="d" id="wb-detail"></div>
+          <div class="actions">
+            <button class="btn" id="wb-retry" style="background:var(--green);color:#f7f8f3;padding:8px 18px">重试</button>
+            <button class="btn ghost" id="wb-browser" style="color:#f4f5f0">在浏览器中打开</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 余额与用量浮窗（仅工作台显示） -->
+      <div id="dshd-root">
+        <button class="dshd-pill" id="dshd-pill" title="点击展开余额与用量详情">
+          <span class="dshd-dot" id="dshd-dot"></span>
+          <span id="dshd-pill-text">余额 --</span>
+          <span class="dshd-sep">·</span>
+          <span id="dshd-pill-usage">今日 --</span>
+        </button>
+        <div class="dshd-panel hidden" id="dshd-panel">
+          <div class="dshd-head">
+            <span class="dshd-title">余额与用量</span>
+            <span class="dshd-actions">
+              <button class="dshd-btn" id="dshd-refresh" title="立即刷新">&#x27F3;</button>
+              <button class="dshd-btn" id="dshd-settings" title="设置">&#x2699;</button>
+              <button class="dshd-btn" id="dshd-hide" title="收起面板">&#x2715;</button>
+            </span>
+          </div>
+          <div class="dshd-section" id="dshd-balance"></div>
+          <div class="dshd-section" id="dshd-usage"></div>
+          <div class="dshd-foot">
+            <a class="link" id="dshd-platform">打开平台用量页</a>
+            <span style="color:var(--faint);font-size:11px">用量为本地会话统计</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var api = window.dshDesktop
+      var $ = function (id) { return document.getElementById(id) }
+
+      /* ============ 工具 ============ */
+      function fmtTokens(n) {
+        n = Number(n) || 0
+        if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B'
+        if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M'
+        if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k'
+        return String(n)
+      }
+      function fmtMoney(n, digits) {
+        n = Number(n)
+        if (!isFinite(n)) return '--'
+        var d = digits === undefined ? 2 : digits
+        if (n !== 0 && n < Math.pow(10, -d)) d = 4
+        return n.toLocaleString('zh-CN', { minimumFractionDigits: d, maximumFractionDigits: d })
+      }
+      function fmtTime(ts) {
+        if (!ts) return '--'
+        return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false })
+      }
+
+      /* ============ 欢迎区（问候 + 日期 + 随小时更新的小古诗） ============ */
+      var POEMS = [
+        ['春眠不觉晓，\n处处闻啼鸟。\n夜来风雨声，\n花落知多少。', '孟浩然《春晓》'],
+        ['床前明月光，\n疑是地上霜。\n举头望明月，\n低头思故乡。', '李白《静夜思》'],
+        ['白日依山尽，\n黄河入海流。\n欲穷千里目，\n更上一层楼。', '王之涣《登鹳雀楼》'],
+        ['千山鸟飞绝，\n万径人踪灭。\n孤舟蓑笠翁，\n独钓寒江雪。', '柳宗元《江雪》'],
+        ['红豆生南国，\n春来发几枝。\n愿君多采撷，\n此物最相思。', '王维《相思》'],
+        ['空山不见人，\n但闻人语响。\n返景入深林，\n复照青苔上。', '王维《鹿柴》'],
+        ['独坐幽篁里，\n弹琴复长啸。\n深林人不知，\n明月来相照。', '王维《竹里馆》'],
+        ['锄禾日当午，\n汗滴禾下土。\n谁知盘中餐，\n粒粒皆辛苦。', '李绅《悯农》'],
+        ['向晚意不适，\n驱车登古原。\n夕阳无限好，\n只是近黄昏。', '李商隐《登乐游原》'],
+        ['松下问童子，\n言师采药去。\n只在此山中，\n云深不知处。', '贾岛《寻隐者不遇》'],
+        ['日暮苍山远，\n天寒白屋贫。\n柴门闻犬吠，\n风雪夜归人。', '刘长卿《逢雪宿芙蓉山主人》'],
+        ['移舟泊烟渚，\n日暮客愁新。\n野旷天低树，\n江清月近人。', '孟浩然《宿建德江》'],
+        ['海上生明月，\n天涯共此时。\n情人怨遥夜，\n竟夕起相思。', '张九龄《望月怀远》'],
+        ['墙角数枝梅，\n凌寒独自开。\n遥知不是雪，\n为有暗香来。', '王安石《梅花》'],
+        ['离离原上草，\n一岁一枯荣。\n野火烧不尽，\n春风吹又生。', '白居易《赋得古原草送别》'],
+        ['两个黄鹂鸣翠柳，\n一行白鹭上青天。\n窗含西岭千秋雪，\n门泊东吴万里船。', '杜甫《绝句》'],
+        ['朝辞白帝彩云间，\n千里江陵一日还。\n两岸猿声啼不住，\n轻舟已过万重山。', '李白《早发白帝城》'],
+        ['日照香炉生紫烟，\n遥看瀑布挂前川。\n飞流直下三千尺，\n疑是银河落九天。', '李白《望庐山瀑布》'],
+        ['远上寒山石径斜，\n白云生处有人家。\n停车坐爱枫林晚，\n霜叶红于二月花。', '杜牧《山行》'],
+        ['清明时节雨纷纷，\n路上行人欲断魂。\n借问酒家何处有，\n牧童遥指杏花村。', '杜牧《清明》'],
+        ['少小离家老大回，\n乡音无改鬓毛衰。\n儿童相见不相识，\n笑问客从何处来。', '贺知章《回乡偶书》'],
+        ['碧玉妆成一树高，\n万条垂下绿丝绦。\n不知细叶谁裁出，\n二月春风似剪刀。', '贺知章《咏柳》'],
+        ['葡萄美酒夜光杯，\n欲饮琵琶马上催。\n醉卧沙场君莫笑，\n古来征战几人回。', '王翰《凉州词》'],
+        ['秦时明月汉时关，\n万里长征人未还。\n但使龙城飞将在，\n不教胡马度阴山。', '王昌龄《出塞》'],
+        ['月落乌啼霜满天，\n江枫渔火对愁眠。\n姑苏城外寒山寺，\n夜半钟声到客船。', '张继《枫桥夜泊》'],
+        ['横看成岭侧成峰，\n远近高低各不同。\n不识庐山真面目，\n只缘身在此山中。', '苏轼《题西林壁》'],
+        ['水光潋滟晴方好，\n山色空蒙雨亦奇。\n欲把西湖比西子，\n淡妆浓抹总相宜。', '苏轼《饮湖上初晴后雨》'],
+        ['毕竟西湖六月中，\n风光不与四时同。\n接天莲叶无穷碧，\n映日荷花别样红。', '杨万里《晓出净慈寺送林子方》'],
+        ['泉眼无声惜细流，\n树阴照水爱晴柔。\n小荷才露尖尖角，\n早有蜻蜓立上头。', '杨万里《小池》'],
+        ['应怜屐齿印苍苔，\n小扣柴扉久不开。\n春色满园关不住，\n一枝红杏出墙来。', '叶绍翁《游园不值》'],
+        ['半亩方塘一鉴开，\n天光云影共徘徊。\n问渠那得清如许，\n为有源头活水来。', '朱熹《观书有感》'],
+        ['胜日寻芳泗水滨，\n无边光景一时新。\n等闲识得东风面，\n万紫千红总是春。', '朱熹《春日》'],
+        ['京口瓜洲一水间，\n钟山只隔数重山。\n春风又绿江南岸，\n明月何时照我还。', '王安石《泊船瓜洲》'],
+        ['咬定青山不放松，\n立根原在破岩中。\n千磨万击还坚劲，\n任尔东西南北风。', '郑燮《竹石》'],
+        ['草长莺飞二月天，\n拂堤杨柳醉春烟。\n儿童散学归来早，\n忙趁东风放纸鸢。', '高鼎《村居》'],
+        ['天门中断楚江开，\n碧水东流至此回。\n两岸青山相对出，\n孤帆一片日边来。', '李白《望天门山》'],
+        ['独在异乡为异客，\n每逢佳节倍思亲。\n遥知兄弟登高处，\n遍插茱萸少一人。', '王维《九月九日忆山东兄弟》'],
+        ['李白乘舟将欲行，\n忽闻岸上踏歌声。\n桃花潭水深千尺，\n不及汪伦送我情。', '李白《赠汪伦》'],
+        ['好雨知时节，\n当春乃发生。\n随风潜入夜，\n润物细无声。', '杜甫《春夜喜雨》'],
+        ['众鸟高飞尽，\n孤云独去闲。\n相看两不厌，\n只有敬亭山。', '李白《独坐敬亭山》']
+      ]
+
+      function dateLine(d) {
+        var wds = ['日', '一', '二', '三', '四', '五', '六']
+        return '现在是 ' + d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 · 星期' + wds[d.getDay()] + ' · ' + fmtTime(d.getTime())
+      }
+
+      function renderClock() {
+        $('welcome-date').textContent = dateLine(new Date())
+      }
+
+      function renderWelcome() {
+        var d = new Date()
+        var h = d.getHours()
+        var g
+        if (h >= 5 && h < 11) g = '早上好'
+        else if (h >= 11 && h < 13) g = '中午好'
+        else if (h >= 13 && h < 18) g = '下午好'
+        else if (h >= 18 && h < 23) g = '晚上好'
+        else g = '夜深了'
+        $('welcome-greeting').textContent = g + '！'
+        renderClock()
+        var idx = ((d.getDay() + 1) * 24 + h) % POEMS.length
+        var p = POEMS[idx]
+        $('welcome-poem').textContent = p[0]
+        $('welcome-poem-author').textContent = '—— ' + p[1]
+      }
+
+      /* ============ 视图切换 ============ */
+      var currentView = 'workbench'
+      try {
+        var saved = localStorage.getItem('dshd-view')
+        if (saved === 'dashboard' || saved === 'workbench') currentView = saved
+      } catch (e) { }
+
+      function switchView(view) {
+        currentView = view
+        $('view-dashboard').classList.toggle('hidden', view !== 'dashboard')
+        $('view-workbench').classList.toggle('hidden', view !== 'workbench')
+        $('tab-dashboard').classList.toggle('active', view === 'dashboard')
+        $('tab-workbench').classList.toggle('active', view === 'workbench')
+        try { localStorage.setItem('dshd-view', view) } catch (e) { }
+      }
+
+      $('tab-dashboard').addEventListener('click', function () { switchView('dashboard') })
+      $('tab-workbench').addEventListener('click', function () { switchView('workbench') })
+      $('btn-settings').addEventListener('click', function () { api.usageOpenSettings() })
+      api.onNavigate(function (view) { switchView(view) })
+
+      /* ============ 工作台：iframe 与状态覆盖层 ============ */
+      var iframeOkSent = false
+
+      function setOverlay(show, status, detail, busy) {
+        $('wb-overlay').classList.toggle('hidden', !show)
+        $('wb-spinner').style.display = busy ? '' : 'none'
+        $('wb-status').textContent = status || ''
+        $('wb-detail').textContent = detail || ''
+      }
+
+      function loadApp(url) {
+        if (!url) return
+        var frame = $('wb-frame')
+        if (frame.getAttribute('src') === url) return
+        setOverlay(true, '正在加载 Harness 界面…', url, true)
+        frame.setAttribute('src', url)
+      }
+
+      $('wb-frame').addEventListener('load', function () {
+        setOverlay(false, '', '', false)
+        if (!iframeOkSent) {
+          iframeOkSent = true
+          api.shellIframeOk()
+        }
+      })
+      $('wb-frame').addEventListener('error', function () {
+        setOverlay(true, 'Harness 界面加载失败', '请点击「重试」重新连接，或检查本地服务状态。', false)
+      })
+      $('wb-retry').addEventListener('click', function () { api.retry({}) })
+      $('wb-browser').addEventListener('click', function () { api.openBrowser() })
+
+      function onPhase(s) {
+        if (!s) return
+        if (s.phase === 'ready') { loadApp(s.url); return }
+        var map = {
+          connecting: ['正在连接本地服务…', s.url],
+          starting: ['正在启动本地服务…', 'dsh web --port ' + s.port],
+          error: ['出错了', s.detail || ''],
+          stopped: ['本地服务已停止', s.detail || '点击「重试」重新连接或启动服务']
+        }
+        var pair = map[s.phase]
+        if (pair) setOverlay(true, pair[0], pair[1], s.phase === 'connecting' || s.phase === 'starting')
+      }
+
+      api.onState(onPhase)
+      api.shellGetState().then(function (d) {
+        if (d.version) {
+          $('dash-version').textContent = 'v' + d.version
+          $('topbar-version').textContent = 'v' + d.version
+        }
+        onPhase(d.state)
+        api.shellLoaded()
+      })
+
+      /* ============ 余额浮窗（仅工作台） ============ */
+      var panel = $('dshd-panel')
+      var pill = $('dshd-pill')
+      var widgetEnabled = true
+      var lastData = null
+
+      function balanceStatus(b) {
+        if (!b || !b.ok) return ['err', b && b.error ? b.error : '尚未获取']
+        if (b.kind === 'quota') return ['ok', '剩余 ' + fmtMoney(b.remaining) + ' / ' + fmtMoney(b.total)]
+        return [b.isAvailable ? 'ok' : 'err', b.isAvailable ? '可用' : '不可用']
+      }
+
+      function usageLine(bucket) {
+        if (!bucket) return '暂无数据'
+        var tok = bucket.inputTokens + bucket.outputTokens + bucket.cacheReadTokens + bucket.cacheWriteTokens
+        return bucket.requests + ' 次请求 · ' + fmtTokens(tok) + ' tokens'
+      }
+
+      function renderWidget(d) {
+        if (!d) return
+        lastData = d
+        var enabled = d.settings && d.settings.enabled !== false && widgetEnabled
+        $('dshd-root').classList.toggle('hidden', !enabled)
+        if (!enabled) return
+
+        var b = d.snapshot && d.snapshot.balance
+        var u = d.snapshot && d.snapshot.usage
+        var bs = balanceStatus(b)
+
+        $('dshd-dot').className = 'dshd-dot' + (bs[0] === 'ok' ? ' ok' : bs[0] === 'err' ? ' err' : '')
+        if (b && b.ok) {
+          var money = b.kind === 'quota' ? fmtMoney(b.remaining) : fmtMoney(b.total)
+          var prefix = b.currency && b.currency !== 'quota' ? (b.currency === 'CNY' ? '¥' : b.currency + ' ') : ''
+          $('dshd-pill-text').textContent = '余额 ' + prefix + money
+          pill.title = '点击展开余额与用量详情'
+        } else {
+          $('dshd-pill-text').textContent = '余额查询失败'
+          pill.title = bs[1]
+        }
+        $('dshd-pill-usage').textContent = '今日 ' + (u ? u.today.requests + ' 次' : '--')
+
+        if (b && b.ok) {
+          if (b.kind === 'quota') {
+            var usedPct = Number(b.total) > 0 ? Math.min(100, (Number(b.used || 0) / Number(b.total)) * 100) : 0
+            $('dshd-balance').innerHTML =
+              '<div class="dshd-sec-title">余额 · QUOTA</div>' +
+              '<div class="dshd-big">' + fmtMoney(b.remaining) + ' <small>剩余</small></div>' +
+              '<div class="dshd-bar"><div class="dshd-bar-inner" style="width:' + usedPct + '%"></div></div>' +
+              '<div class="dshd-row"><span>已用 / 总额</span><b>' + fmtMoney(b.used) + ' / ' + fmtMoney(b.total) + '</b></div>' +
+              '<div class="dshd-row"><span>更新时间</span><b>' + fmtTime(b.at) + ' · 自动刷新</b></div>'
+          } else {
+            var p = b.currency === 'CNY' ? '¥' : (b.currency ? b.currency + ' ' : '')
+            $('dshd-balance').innerHTML =
+              '<div class="dshd-sec-title">余额 · ' + (b.currency || '') + '</div>' +
+              '<div class="dshd-big">' + p + fmtMoney(b.total) + '</div>' +
+              '<div class="dshd-row"><span>充值余额</span><b>' + p + fmtMoney(b.toppedUp) + '</b></div>' +
+              '<div class="dshd-row"><span>赠送余额</span><b>' + p + fmtMoney(b.granted) + '</b></div>' +
+              '<div class="dshd-row"><span>状态</span><b style="color:' + (b.isAvailable ? 'var(--ok)' : 'var(--err)') + '">' + bs[1] + '</b></div>' +
+              '<div class="dshd-row"><span>更新时间</span><b>' + fmtTime(b.at) + ' · 每 ' + Math.round((d.settings.refreshBalanceMs || 60000) / 1000) + 's 自动刷新</b></div>'
+          }
+        } else {
+          $('dshd-balance').innerHTML =
+            '<div class="dshd-sec-title">余额</div>' +
+            '<div class="dshd-row"><span>状态</span><b style="color:var(--err)">查询失败</b></div>' +
+            '<div class="dshd-row"><span>原因</span><b>' + bs[1] + '</b></div>'
+        }
+
+        if (u) {
+          var t = u.today
+          var w = u.last7d
+          var avg7 = w.requests ? (w.inputTokens + w.outputTokens + w.cacheReadTokens + w.cacheWriteTokens) / 7 : 0
+          var todayTok = t.inputTokens + t.outputTokens + t.cacheReadTokens + t.cacheWriteTokens
+          var barPct = avg7 > 0 ? Math.min(100, (todayTok / avg7) * 100) : 0
+          var cell = function (label, v) { return '<div class="dshd-cell">' + label + '<b>' + v + '</b></div>' }
+          $('dshd-usage').innerHTML =
+            '<div class="dshd-sec-title">本地用量统计</div>' +
+            '<div class="dshd-row"><span>今日</span><b>' + usageLine(t) + '</b></div>' +
+            '<div class="dshd-row"><span>近 7 天</span><b>' + usageLine(w) + '</b></div>' +
+            '<div class="dshd-bar"><div class="dshd-bar-inner" style="width:' + barPct + '%"></div></div>' +
+            '<div class="dshd-row" style="color:var(--faint);font-size:11px"><span>今日 tokens / 7 天日均</span><b>' + Math.round((todayTok / (avg7 || 1)) * 100) + '%</b></div>' +
+            '<div class="dshd-grid">' +
+            cell('今日输入', fmtTokens(t.inputTokens)) +
+            cell('今日输出', fmtTokens(t.outputTokens)) +
+            cell('7天输入', fmtTokens(w.inputTokens)) +
+            cell('7天输出', fmtTokens(w.outputTokens)) +
+            cell('7天缓存读', fmtTokens(w.cacheReadTokens)) +
+            cell('会话数', u.sessionCount) +
+            '</div>'
+        } else {
+          $('dshd-usage').innerHTML = '<div class="dshd-sec-title">本地用量统计</div><div class="dshd-row"><span>状态</span><b style="color:var(--err)">暂无统计</b></div>'
+        }
+      }
+
+      pill.addEventListener('click', function () {
+        var hidden = panel.classList.toggle('hidden')
+        if (!hidden) api.usageRefresh().then(renderWidget).catch(function () { })
+      })
+      $('dshd-refresh').addEventListener('click', function () { api.usageRefresh().then(renderWidget).catch(function () { }) })
+      $('dshd-settings').addEventListener('click', function () { api.usageOpenSettings() })
+      $('dshd-hide').addEventListener('click', function () { panel.classList.add('hidden') })
+      $('dshd-platform').addEventListener('click', function () { api.usageOpenPlatform() })
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') panel.classList.add('hidden') })
+
+      api.onUsageUpdate(renderWidget)
+      api.onUsageVisibility(function (v) {
+        widgetEnabled = v !== false
+        if (lastData) renderWidget(lastData)
+        if (widgetEnabled) api.usageSnapshot().then(renderWidget).catch(function () { })
+      })
+      api.usageSnapshot().then(renderWidget).catch(function () { })
+
+      /* ============ 仪表盘 ============ */
+      var chartMetric = 'cost'
+      var lastUsageData = null
+
+      function periodBlock(title, b) {
+        return '<div class="per">' +
+          '<div class="per-title">' + title + '</div>' +
+          '<div class="per-row"><span>请求</span><b>' + b.requests + ' 次</b></div>' +
+          '<div class="per-row"><span>输入</span><b>' + fmtTokens(b.inputTokens) + '</b></div>' +
+          '<div class="per-row"><span>输出</span><b>' + fmtTokens(b.outputTokens) + '</b></div>' +
+          '<div class="per-row"><span>缓存读</span><b>' + fmtTokens(b.cacheReadTokens) + '</b></div>' +
+          '<div class="per-row"><span>花费</span><b>¥' + fmtMoney(b.cost.total) + '</b></div>' +
+          '</div>'
+      }
+
+      function renderDash(d) {
+        var u = d.snapshot && d.snapshot.usage
+        var b = d.snapshot && d.snapshot.balance
+        if (u) lastUsageData = u
+        if (!lastUsageData) return
+        u = lastUsageData
+
+        var mb = u.month.bucket
+        var totalTok = mb.inputTokens + mb.outputTokens + mb.cacheReadTokens + mb.cacheWriteTokens
+        var dayCount = u.month.days.length || 1
+        $('dash-month-tokens').innerHTML = fmtTokens(totalTok) + ' <small>tokens</small>'
+        $('dash-month-cost').textContent = fmtMoney(mb.cost.total)
+        $('dash-requests').textContent = mb.requests + ' 次'
+        $('dash-sessions').textContent = u.sessionCount + ' 个'
+        $('dash-day-avg').textContent = fmtMoney(mb.cost.total / dayCount)
+
+        $('dash-detail').innerHTML =
+          periodBlock('今日', u.today) +
+          periodBlock('近 7 天', u.last7d) +
+          periodBlock('本月', mb) +
+          periodBlock('累计', u.total)
+
+        if (b && b.ok) {
+          var money = b.kind === 'quota' ? b.remaining : b.total
+          $('dash-balance').textContent = fmtMoney(money)
+          $('dash-bal-currency').textContent = (b.kind === 'quota') ? 'quota' : ((b.currency && b.currency !== 'CNY') ? b.currency : '')
+          var bs = balanceStatus(b)
+          $('dash-bal-dot').className = 'dot ' + (bs[0] === 'ok' ? 'ok' : 'err')
+          $('dash-bal-status').textContent = bs[1]
+          if (b.kind === 'quota') {
+            $('dash-bal-split').textContent = fmtMoney(b.used) + ' 已用 / ' + fmtMoney(b.total)
+          } else {
+            $('dash-bal-split').textContent = fmtMoney(b.toppedUp) + ' / ' + fmtMoney(b.granted)
+          }
+          $('dash-bal-time').textContent = fmtTime(b.at)
+        } else {
+          $('dash-balance').textContent = '--'
+          $('dash-bal-currency').textContent = ''
+          $('dash-bal-dot').className = 'dot err'
+          $('dash-bal-status').textContent = b && b.error ? '查询失败' : '尚未获取'
+          $('dash-bal-split').textContent = '--'
+          $('dash-bal-time').textContent = '--'
+        }
+        var p = u.month.prices
+        $('dash-prices').textContent = '入¥' + p.input + ' 出¥' + p.output + ' 缓存¥' + p.cacheRead
+
+        $('dash-updated').textContent = '更新于 ' + fmtTime(u.scannedAt)
+        renderChart(u.month.days, chartMetric)
+      }
+
+      function renderChart(days, metric) {
+        var el = $('dash-chart')
+        var n = days.length
+        if (!n) { el.innerHTML = ''; return }
+        var W = 1000, H = 250, padL = 8, padR = 8, padT = 16, padB = 28
+        var innerW = W - padL - padR
+        var innerH = H - padT - padB
+        var vals = days.map(function (d) {
+          if (metric === 'cost') return d.cost.total
+          return d.inputTokens + d.outputTokens + d.cacheReadTokens + d.cacheWriteTokens
+        })
+        var maxV = Math.max.apply(null, vals.concat([0.001]))
+        var slot = innerW / n
+        var bw = Math.max(3, slot * 0.62)
+
+        var bars = ''
+        var labels = ''
+        for (var i = 0; i < n; i++) {
+          var v = vals[i]
+          var h = maxV > 0 ? (v / maxV) * innerH : 0
+          var x = padL + i * slot + (slot - bw) / 2
+          var y = padT + innerH - h
+          var isToday = i === n - 1
+          var fill = isToday ? '#4c583c' : '#c7cdb8'
+          if (v === 0) fill = '#e9ecdf'
+          bars += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, v > 0 ? 1.5 : 0.8).toFixed(1) + '" fill="' + fill + '" data-i="' + i + '">' +
+            '<title>' + days[i].day + '：' + fmtAxis(v, metric) + '</title></rect>'
+        }
+        for (var j = 0; j < n; j++) {
+          if (j === 0 || j === n - 1 || days[j].dayOfMonth % 5 === 0) {
+            var lx = padL + j * slot + slot / 2
+            labels += '<text x="' + lx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="#a6ab99">' + days[j].dayOfMonth + '</text>'
+          }
+        }
+        var grid = ''
+        for (var g = 0; g <= 3; g++) {
+          var gy = padT + (innerH * g) / 3
+          var gv = maxV * (1 - g / 3)
+          grid += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + gy.toFixed(1) + '" stroke="#e4e6da" stroke-width="1"/>' +
+            '<text x="' + (W - padR - 4) + '" y="' + (gy - 4).toFixed(1) + '" text-anchor="end" font-size="10" fill="#a6ab99">' + fmtAxis(gv, metric) + '</text>'
+        }
+        el.innerHTML =
+          '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">' +
+          grid + bars + labels + '</svg>'
+
+        var tip = document.createElement('div')
+        tip.id = 'dash-tip'
+        tip.className = 'hidden'
+        el.appendChild(tip)
+
+        var rects = el.querySelectorAll('rect[data-i]')
+        for (var r = 0; r < rects.length; r++) {
+          rects[r].addEventListener('mousemove', (function (idx) {
+            return function (ev) {
+              var d = days[idx]
+              tip.innerHTML =
+                '<div style="font-weight:700">' + d.day + '</div>' +
+                '<div class="t-row"><span>金额</span><b>¥' + fmtMoney(d.cost.total) + '</b></div>' +
+                '<div class="t-row"><span>tokens</span><b>' + fmtTokens(d.inputTokens + d.outputTokens + d.cacheReadTokens + d.cacheWriteTokens) + '</b></div>' +
+                '<div class="t-row"><span>输入 / 输出</span><b>' + fmtTokens(d.inputTokens) + ' / ' + fmtTokens(d.outputTokens) + '</b></div>' +
+                '<div class="t-row"><span>缓存读</span><b>' + fmtTokens(d.cacheReadTokens) + '</b></div>' +
+                '<div class="t-row"><span>请求</span><b>' + d.requests + ' 次</b></div>'
+              tip.classList.remove('hidden')
+              var box = el.getBoundingClientRect()
+              var px = ev.clientX - box.left
+              var py = ev.clientY - box.top
+              tip.style.left = px + 'px'
+              tip.style.top = py + 'px'
+            }
+          })(r))
+          rects[r].addEventListener('mouseleave', function () { tip.classList.add('hidden') })
+        }
+      }
+
+      function fmtAxis(v, metric) {
+        if (metric === 'cost') return '¥' + fmtMoney(v)
+        return fmtTokens(v)
+      }
+
+      $('metric-cost').addEventListener('click', function () {
+        chartMetric = 'cost'
+        $('metric-cost').classList.add('active')
+        $('metric-tokens').classList.remove('active')
+        if (lastUsageData) renderChart(lastUsageData.month.days, chartMetric)
+      })
+      $('metric-tokens').addEventListener('click', function () {
+        chartMetric = 'tokens'
+        $('metric-tokens').classList.add('active')
+        $('metric-cost').classList.remove('active')
+        if (lastUsageData) renderChart(lastUsageData.month.days, chartMetric)
+      })
+      $('dash-platform').addEventListener('click', function () { api.usageOpenPlatform() })
+
+      api.onUsageUpdate(renderDash)
+      api.usageSnapshot().then(renderDash).catch(function () { })
+
+      /* ============ 初始渲染 ============ */
+      renderWelcome()
+      setInterval(renderWelcome, 60 * 1000) // 问候 / 古诗每小时轮换
+      setInterval(renderClock, 1000)        // 时钟每秒实时刷新（含秒）
+      switchView(currentView)
+    })()
+  </script>
+</body>
+</html>

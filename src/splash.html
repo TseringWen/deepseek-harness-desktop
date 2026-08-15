@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>DeepSeek Harness</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --green: #4c583c;
+      --green-dark: #3c472e;
+      --bg: #f4f5f0;
+      --card: #ffffff;
+      --border: #e4e6da;
+      --border2: #d7dacb;
+      --text: #23271f;
+      --muted: #7c8472;
+      --faint: #a4aa97;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .card {
+      width: min(560px, 92vw);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 40px 40px 28px;
+      box-shadow: 0 24px 64px rgba(35, 39, 31, 0.10);
+    }
+    .logo { text-align: center; margin-bottom: 16px; }
+    .logo img { width: 60px; height: 60px; }
+    h1 { margin: 0; text-align: center; font-size: 23px; letter-spacing: .2px; font-weight: 700; }
+    .subtitle { margin: 6px 0 26px; text-align: center; color: var(--muted); font-size: 13px; }
+    .status { display: flex; align-items: center; gap: 14px; min-height: 48px; }
+    #status { font-size: 15px; font-weight: 600; }
+    #detail { margin-top: 3px; font-size: 12.5px; color: var(--muted); word-break: break-all; }
+    .spinner {
+      flex: none;
+      width: 20px; height: 20px;
+      border: 3px solid #e4e6da;
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .bar {
+      height: 4px; margin: 18px 0 6px;
+      background: var(--border); border-radius: 2px; overflow: hidden;
+    }
+    .bar-inner {
+      width: 40%; height: 100%;
+      background: var(--green);
+      border-radius: 2px;
+      animation: slide 1.3s ease-in-out infinite;
+    }
+    @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+    .controls {
+      display: flex; gap: 10px; align-items: flex-end;
+      margin: 14px 0 4px;
+    }
+    .controls label { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+    input[type="number"] {
+      width: 120px; padding: 8px 10px;
+      background: var(--card); color: var(--text);
+      border: 1px solid var(--border2); border-radius: 8px;
+      font-size: 14px;
+    }
+    input[type="number"]:focus { outline: none; border-color: var(--green); }
+    button {
+      padding: 9px 22px; font-size: 14px;
+      border-radius: 8px; border: none; cursor: pointer;
+      background: var(--green); color: #f7f8f3; font-weight: 600;
+    }
+    button:hover { background: var(--green-dark); }
+    .links {
+      display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+      margin-top: 16px; font-size: 12.5px;
+    }
+    .links a { color: var(--green); text-decoration: none; font-weight: 600; }
+    .links a:hover { text-decoration: underline; }
+    .keep { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
+    .keep input { accent-color: var(--green); }
+    .logbox { margin-top: 14px; font-size: 12.5px; }
+    .logbox summary { cursor: pointer; color: var(--muted); user-select: none; }
+    .logbox pre {
+      max-height: 220px; overflow: auto;
+      background: #f0f2ea; border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; margin: 8px 0 0;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 11.5px; line-height: 1.55; color: #5c6650;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .foot { margin-top: 18px; text-align: center; font-size: 11.5px; color: var(--faint); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">
+      <img src="../build/whale.svg" alt="DeepSeek" />
+    </div>
+    <h1>DeepSeek Harness</h1>
+    <p class="subtitle">桌面客户端</p>
+
+    <div class="status">
+      <div id="spinner" class="spinner"></div>
+      <div>
+        <div id="status">正在初始化…</div>
+        <div id="detail"></div>
+      </div>
+    </div>
+    <div id="bar" class="bar"><div class="bar-inner"></div></div>
+
+    <div id="controls" class="controls hidden">
+      <label>服务端口
+        <input id="port" type="number" min="1" max="65535" value="3080" />
+      </label>
+      <button id="retry">重试</button>
+    </div>
+
+    <div class="links">
+      <a href="#" id="browser">在浏览器中打开</a>
+      <a href="#" id="logs">打开服务日志</a>
+      <label class="keep hidden"><input type="checkbox" id="keep" /> 退出时保留本地服务</label>
+      <a href="#" id="quit">退出</a>
+    </div>
+
+    <details class="logbox">
+      <summary>查看服务日志</summary>
+      <pre id="log"></pre>
+    </details>
+
+    <div class="foot" id="foot"></div>
+  </main>
+
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); }
+      var api = window.dshDesktop
+      var cfg = null
+      var logLines = []
+      var MAX_LOG = 500
+
+      api.onState(function (s) { cfg = s; render(s) })
+      api.onLog(function (line) {
+        logLines.push(line)
+        if (logLines.length > MAX_LOG) logLines.shift()
+        var el = $('log')
+        el.textContent = logLines.join('\n')
+        el.scrollTop = el.scrollHeight
+      })
+
+      api.getConfig().then(function (c) {
+        cfg = c
+        $('port').value = c.port
+        $('keep').checked = !!c.keepServer
+        render(c)
+      })
+
+      function render(s) {
+        if (!s) return
+        var map = {
+          connecting: ['正在连接本地服务…', s.url],
+          starting: ['正在启动本地服务，首次启动可能需要几十秒…', 'dsh web --port ' + s.port],
+          ready: ['服务已就绪，正在加载界面…', s.url],
+          error: ['出错了', s.detail || ''],
+          stopped: ['服务已停止', s.detail || '点击「重试」重新连接或启动服务']
+        }
+        var pair = map[s.phase] || ['正在初始化…', '']
+        $('status').textContent = pair[0]
+        $('detail').textContent = pair[1]
+
+        var busy = s.phase === 'connecting' || s.phase === 'starting' || s.phase === 'ready'
+        $('spinner').classList.toggle('hidden', !busy)
+        $('bar').classList.toggle('hidden', !busy)
+
+        var needsControls = s.phase === 'error' || s.phase === 'stopped'
+        $('controls').classList.toggle('hidden', !needsControls)
+
+        var keep = $('keep').parentElement
+        keep.classList.toggle('hidden', s.mode !== 'managed')
+
+        $('foot').textContent =
+          s.url + ' · 模式：' +
+          (s.mode === 'managed' ? '本地服务（由应用托管）' : '已运行的外部服务')
+      }
+
+      $('retry').onclick = function (e) {
+        e.preventDefault()
+        var p = Number($('port').value) || 3080
+        api.retry({ port: p })
+      }
+      $('browser').onclick = function (e) { e.preventDefault(); api.openBrowser() }
+      $('logs').onclick = function (e) { e.preventDefault(); api.openLogs() }
+      $('quit').onclick = function (e) { e.preventDefault(); api.quit() }
+      $('keep').onchange = function () { api.setKeepServer($('keep').checked) }
+    })()
+  </script>
+</body>
+</html>

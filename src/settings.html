@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>DeepSeek Harness 设置</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --green: #4c583c;
+      --green-dark: #3c472e;
+      --bg: #f4f5f0;
+      --surface: #ffffff;
+      --border: #e4e6da;
+      --border2: #d7dacb;
+      --text: #23271f;
+      --muted: #7c8472;
+      --faint: #a4aa97;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px 28px 28px;
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      background: var(--bg); color: var(--text); font-size: 13.5px;
+      overflow-y: auto;
+    }
+    .head { display: flex; align-items: center; gap: 10px; }
+    .head img { width: 26px; height: 26px; }
+    h1 { font-size: 17px; margin: 0; }
+    .sub { color: var(--muted); font-size: 12px; margin: 4px 0 18px; }
+    h2 {
+      font-size: 12px; color: var(--faint); letter-spacing: .8px; text-transform: uppercase;
+      margin: 22px 0 12px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    .row { margin-bottom: 14px; }
+    .row > label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12.5px; }
+    input[type="text"], input[type="password"], select {
+      width: 100%; padding: 9px 11px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border2); border-radius: 8px; font-size: 13.5px;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--green); }
+    .check { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); }
+    .check input { width: 16px; height: 16px; accent-color: var(--green); }
+    .hint { margin-top: 6px; font-size: 11.5px; color: var(--faint); line-height: 1.5; }
+    .hint.ok { color: #5b7a45; }
+    .hint.err { color: #c0594f; }
+    .prices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+    .prices .row { margin-bottom: 0; }
+    .prices input { text-align: right; }
+    .actions { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+    button {
+      padding: 9px 20px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 13.5px; font-weight: 600; color: #f7f8f3;
+      background: var(--green);
+    }
+    button.ghost { background: transparent; border: 1px solid var(--border2); color: var(--muted); font-weight: 500; }
+    button:hover { background: var(--green-dark); color: #fff; }
+    button.ghost:hover { background: #eceee4; color: var(--text); }
+    #status { margin-top: 14px; font-size: 12.5px; min-height: 18px; }
+    #status.ok { color: #5b7a45; }
+    #status.err { color: #c0594f; }
+    .foot { margin-top: 16px; font-size: 11.5px; color: var(--faint); line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <img src="../build/whale.svg" alt="DeepSeek" />
+    <h1>DeepSeek Harness 设置</h1>
+  </div>
+  <p class="sub">桌面应用设置（保存在本机 %APPDATA%\DeepSeekHarnessDesktop）</p>
+
+  <div class="row">
+    <label class="check"><input type="checkbox" id="enabled" /> 在工作台显示余额与用量浮窗</label>
+  </div>
+
+  <h2>余额查询</h2>
+
+  <div class="row">
+    <label for="key">API Key 覆盖（留空 = 使用 ~/.dsh/.credentials.yaml 的 DEEPSEEK_API_KEY）</label>
+    <input type="password" id="key" placeholder="sk-..." autocomplete="off" />
+    <div class="hint" id="key-hint"></div>
+  </div>
+
+  <div class="row">
+    <label for="url">余额接口地址（留空 = DeepSeek 官方 https://api.deepseek.com/user/balance）</label>
+    <input type="text" id="url" placeholder="https://api.deepseek.com/user/balance" />
+  </div>
+
+  <div class="row">
+    <label for="interval">余额自动刷新间隔</label>
+    <select id="interval">
+      <option value="30000">30 秒</option>
+      <option value="60000">1 分钟</option>
+      <option value="300000">5 分钟</option>
+      <option value="600000">10 分钟</option>
+    </select>
+  </div>
+
+  <h2>计费单价（用于估算每日金额）</h2>
+  <p class="hint" style="margin-top:-4px">单位：元 / 每百万 tokens。默认取 DeepSeek 官方公开价，可按你的套餐修改；仪表盘金额均为估算值，以平台账单为准。</p>
+  <div class="prices" style="margin-top:12px">
+    <div class="row"><label for="p-input">输入（缓存未命中）</label><input type="text" id="p-input" inputmode="decimal" /></div>
+    <div class="row"><label for="p-output">输出</label><input type="text" id="p-output" inputmode="decimal" /></div>
+    <div class="row"><label for="p-cache-read">缓存读（命中）</label><input type="text" id="p-cache-read" inputmode="decimal" /></div>
+    <div class="row"><label for="p-cache-write">缓存写</label><input type="text" id="p-cache-write" inputmode="decimal" /></div>
+  </div>
+
+  <h2>退出行为</h2>
+  <div class="row">
+    <label class="check"><input type="checkbox" id="confirm-quit" /> 关闭窗口时弹出退出确认</label>
+  </div>
+  <div class="row">
+    <label class="check"><input type="checkbox" id="keep-server" /> 退出时保留本地服务（仅本应用拉起服务时有效）</label>
+  </div>
+
+  <div class="actions">
+    <button id="save">保存</button>
+    <button class="ghost" id="refresh">立即刷新余额与用量</button>
+    <button class="ghost" id="platform">打开平台用量页</button>
+    <button class="ghost" id="close">关闭</button>
+  </div>
+
+  <div id="status"></div>
+
+  <p class="foot">
+    说明：API Key 仅保存在本机桌面客户端配置中，只用于向余额接口发送查询请求，不会上传到任何其他地方。
+    「用量」统计来自本机 ~/.dsh/sessions 下 Harness 会话日志（今日 / 近 7 天 / 本月），与官方平台账单口径可能有差异。
+  </p>
+
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id) }
+      var api = window.dshDesktop
+
+      api.usageGetSettings().then(function (s) {
+        $('enabled').checked = !!s.enabled
+        $('url').value = s.balanceUrl || ''
+        $('interval').value = String(s.refreshBalanceMs || 60000)
+        $('p-input').value = s.prices.input
+        $('p-output').value = s.prices.output
+        $('p-cache-read').value = s.prices.cacheRead
+        $('p-cache-write').value = s.prices.cacheWrite
+        $('confirm-quit').checked = !!s.confirmOnQuit
+        $('keep-server').checked = !!s.keepServerOnQuit
+        var hint = $('key-hint')
+        if (s.apiKeyOverrideSet) {
+          hint.textContent = '已设置自定义 Key（输入新值可替换，留空保存即恢复使用 dsh 凭据）'
+          hint.className = 'hint ok'
+        } else if (s.hasDshKey) {
+          hint.textContent = '✓ 已检测到 ~/.dsh/.credentials.yaml 中的 DEEPSEEK_API_KEY，无需设置'
+          hint.className = 'hint ok'
+        } else {
+          hint.textContent = '未检测到 DEEPSEEK_API_KEY，请在此填写，或在 ~/.dsh/.credentials.yaml 中配置'
+          hint.className = 'hint err'
+        }
+      }).catch(function (e) { show('加载设置失败：' + e.message, false) })
+
+      function show(msg, ok) {
+        $('status').textContent = msg
+        $('status').className = ok ? 'ok' : 'err'
+      }
+
+      function num(id) {
+        var n = Number($(id).value)
+        return isFinite(n) && n >= 0 ? n : 0
+      }
+
+      $('save').onclick = function () {
+        api.usageSetSettings({
+          enabled: $('enabled').checked,
+          apiKeyOverride: $('key').value,
+          balanceUrl: $('url').value,
+          refreshBalanceMs: Number($('interval').value),
+          prices: {
+            input: num('p-input'),
+            output: num('p-output'),
+            cacheRead: num('p-cache-read'),
+            cacheWrite: num('p-cache-write')
+          },
+          confirmOnQuit: $('confirm-quit').checked,
+          keepServerOnQuit: $('keep-server').checked
+        }).then(function () { show('✓ 已保存', true) })
+          .catch(function (e) { show('保存失败：' + e.message, false) })
+      }
+
+      $('refresh').onclick = function () {
+        api.usageRefresh().then(function (d) {
+          var b = d.snapshot && d.snapshot.balance
+          var u = d.snapshot && d.snapshot.usage
+          var parts = []
+          if (b && b.ok) parts.push('余额：' + (b.kind === 'quota' ? b.remaining : b.total))
+          else if (b) parts.push('余额查询失败：' + (b.error || ''))
+          if (u) parts.push('今日 ' + u.today.requests + ' 次请求 · 本月 ' + u.month.bucket.requests + ' 次')
+          show('✓ 刷新完成 —— ' + parts.join('；'), true)
+        }).catch(function (e) { show('刷新失败：' + e.message, false) })
+      }
+
+      $('platform').onclick = function () { api.usageOpenPlatform() }
+      $('close').onclick = function () { window.close() }
+    })()
+  </script>
+</body>
+</html>
